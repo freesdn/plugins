@@ -1,0 +1,90 @@
+# ─────────────────────────────────────────────────────────────────────
+# FreeSDN Plugin Manifest - Notification Hub
+# ─────────────────────────────────────────────────────────────────────
+#
+# A real, useful flagship plugin: forwards FreeSDN alert/SLA/VPN events to
+# external chat + push services (Discord, Slack, ntfy, Gotify, or any generic
+# webhook). Demonstrates the full plugin surface - event subscriptions,
+# on_event() handling, SSRF-guarded outbound HTTP, settings, and a REST router.
+#
+# Install:  POST /api/v1/plugins/install  (upload a ZIP of this folder)
+# ─────────────────────────────────────────────────────────────────────
+
+id: notify-hub
+name: Notification Hub
+version: 1.0.0
+description: >
+  Forward FreeSDN alerts, SLA breaches and VPN events to Discord, Slack,
+  ntfy, Gotify, or a generic webhook. Severity-filtered, multi-channel,
+  with a test-send endpoint. Pure SDK - no external Python dependencies.
+author: FreeSDN
+license: MIT
+homepage: https://github.com/freesdn/freesdn
+min_core_version: 1.0.0
+
+entry_point: plugin.py
+class_name: NotifyHubPlugin
+
+# Read-only access to alerts (event payloads are already delivered; this lets
+# the plugin enrich/look up an alert if needed). No write permissions: the
+# plugin only reads + makes outbound HTTP.
+permissions:
+  - code: alerts.read
+    name: Read Alerts
+    description: Read alert details to format outbound notifications
+
+# Events forwarded to the configured channels. Wildcards ok; bare * not allowed.
+event_subscriptions:
+  - alert.created
+  - alert.fired
+  - alert.resolved
+  - sla.breach_created
+  - vpn.connection_down
+  - vpn.connection_restored
+
+api_prefix: /notify-hub
+
+nav_items:
+  - path: /notify-hub
+    label: Notification Hub
+    icon: Bell
+    order: 80
+
+settings_schema:
+  type: object
+  properties:
+    enabled:
+      type: boolean
+      default: true
+      description: Master on/off switch for all outbound notifications
+    min_severity:
+      type: string
+      enum: [info, warning, error, critical]
+      default: warning
+      description: Only forward events at or above this severity
+    discord_webhook_url:
+      type: string
+      default: ""
+      description: Discord channel webhook URL (https://discord.com/api/webhooks/...)
+    slack_webhook_url:
+      type: string
+      default: ""
+      description: Slack incoming-webhook URL (https://hooks.slack.com/services/...)
+    ntfy_url:
+      type: string
+      default: ""
+      description: Full ntfy topic URL (e.g. https://ntfy.sh/my-freesdn-alerts)
+    gotify_url:
+      type: string
+      default: ""
+      description: Gotify base URL (e.g. https://gotify.example.com)
+    gotify_token:
+      type: string
+      default: ""
+      description: Gotify application token (used with gotify_url)
+    generic_webhook_url:
+      type: string
+      default: ""
+      description: Any URL to POST the raw JSON event to
+
+python_dependencies: []

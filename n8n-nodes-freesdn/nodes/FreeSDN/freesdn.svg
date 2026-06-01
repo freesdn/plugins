@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- FreeSDN fabric mark: a central hub wired to peer nodes (the interconnect) -->
+  <g fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round">
+    <line x1="32" y1="32" x2="32" y2="10"/>
+    <line x1="32" y1="32" x2="52" y2="22"/>
+    <line x1="32" y1="32" x2="52" y2="44"/>
+    <line x1="32" y1="32" x2="32" y2="54"/>
+    <line x1="32" y1="32" x2="12" y2="44"/>
+    <line x1="32" y1="32" x2="12" y2="22"/>
+  </g>
+  <g fill="#2563eb">
+    <circle cx="32" cy="10" r="6"/>
+    <circle cx="52" cy="22" r="6"/>
+    <circle cx="52" cy="44" r="6"/>
+    <circle cx="32" cy="54" r="6"/>
+    <circle cx="12" cy="44" r="6"/>
+    <circle cx="12" cy="22" r="6"/>
+  </g>
+  <circle cx="32" cy="32" r="9" fill="#1e3a8a"/>
+</svg>

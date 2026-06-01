@@ -1,0 +1,10 @@
+# Runtime dependencies for this plugin.
+#
+# List any PyPI packages your plugin imports. FreeSDN installs them into an
+# isolated venv at install time (max 50 packages). Keep this in sync with
+# the python_dependencies field in plugin.yaml.
+#
+# The FreeSDN SDK itself is provided by the host at runtime - do not pin it
+# here. For local development and testing, install it separately:
+#
+#   pip install "freesdn-sdk[dev]"

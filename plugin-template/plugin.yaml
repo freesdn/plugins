@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────────────────────────────
+# FreeSDN Plugin Manifest
+# ─────────────────────────────────────────────────────────────────────
+#
+# Every FreeSDN plugin needs this manifest. It declares metadata, the
+# permissions the plugin uses, the events it listens for, its settings,
+# and any Python dependencies.
+#
+# Copy this folder, rename it, and edit the fields below. Then:
+#   freesdn-sdk validate .
+#   freesdn-sdk check .
+#   freesdn-sdk package .
+# and upload the resulting ZIP under Settings - Plugins (super_admin only).
+# ─────────────────────────────────────────────────────────────────────
+
+id: my-plugin                 # lowercase, hyphenated, unique on the instance
+name: My Plugin
+version: 1.0.0
+description: >
+  One-line description of what this plugin does. Shown in the plugin list
+  in the FreeSDN web UI.
+author: Your Name
+license: MIT
+homepage: https://example.com/my-plugin
+min_core_version: 1.0.0
+
+# Python entry point - file and class FreeSDN will load
+entry_point: plugin.py
+class_name: MyPlugin
+
+# Permissions this plugin needs. Declare every permission up front; the SDK
+# refuses any call the manifest did not request. Remove what you do not use.
+permissions:
+  - code: devices.read
+    name: Read Devices
+    description: List and inspect network devices
+  - code: alerts.read
+    name: Read Alerts
+    description: View existing alerts
+  - code: alerts.write
+    name: Write Alerts
+    description: Create and resolve alerts
+
+# Events this plugin subscribes to. Wildcards are allowed (device.status.*);
+# a bare "*" is not. Remove this block if your plugin does not subscribe.
+event_subscriptions:
+  - device.status.*
+
+# REST API prefix. Endpoints from get_router() mount at /api/v1/my-plugin/.
+# Remove if your plugin exposes no endpoints.
+api_prefix: /my-plugin
+
+# Sidebar navigation item. Remove if your plugin has no UI route.
+nav_items:
+  - path: /my-plugin
+    label: My Plugin
+    icon: Puzzle
+    order: 90
+
+# Settings schema, rendered as a form in the plugin config UI.
+settings_schema:
+  type: object
+  properties:
+    example_setting:
+      type: string
+      default: hello
+      description: An example string setting
+
+# External PyPI dependencies, installed into an isolated venv (max 50).
+python_dependencies: []

@@ -1,0 +1,55 @@
+{
+  "name": "n8n-nodes-freesdn",
+  "version": "1.0.0",
+  "description": "n8n community nodes for FreeSDN network management platform",
+  "keywords": [
+    "n8n-community-node-package",
+    "freesdn",
+    "network",
+    "wifi",
+    "switching"
+  ],
+  "license": "MIT",
+  "homepage": "https://freesdn.org",
+  "author": {
+    "name": "FreeSDN",
+    "email": "contact@freesdn.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/freesdn/plugins.git",
+    "directory": "n8n-nodes-freesdn"
+  },
+  "scripts": {
+    "build": "tsc && gulp build:icons",
+    "dev": "tsc --watch",
+    "format": "prettier nodes credentials --write",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/FreeSDNApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/FreeSDN/FreeSDN.node.js",
+      "dist/nodes/FreeSDN/FreeSdnTrigger.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "gulp": "^5.0.0",
+    "n8n-workflow": "^1.0.0",
+    "prettier": "^3.9.0",
+    "typescript": "^6.0.0"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  },
+  "overrides": {
+    "form-data": "^4.0.6"
+  }
+}

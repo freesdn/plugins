@@ -1,0 +1,69 @@
+# ─────────────────────────────────────────────────────────────────────
+# FreeSDN Plugin Manifest - Hello World
+# ─────────────────────────────────────────────────────────────────────
+#
+# This is the required manifest file for every FreeSDN plugin.
+# It declares metadata, permissions, dependencies, and settings.
+#
+# Install:  POST /api/v1/plugins/install  (upload ZIP of this folder)
+# ─────────────────────────────────────────────────────────────────────
+
+id: hello-world
+name: Hello World
+version: 1.0.0
+description: >
+  A minimal example plugin that demonstrates the FreeSDN Plugin SDK.
+  Lists offline devices, creates alerts, emits events, stores settings,
+  and exposes a custom REST endpoint.
+author: FreeSDN Team
+license: MIT
+homepage: https://github.com/freesdn/freesdn
+min_core_version: 1.0.0
+
+# Python entry point - file and class that FreeSDN will load
+entry_point: plugin.py
+class_name: HelloWorldPlugin
+
+# Permissions this plugin needs (must declare upfront)
+permissions:
+  - code: devices.read
+    name: Read Devices
+    description: List and inspect network devices
+  - code: alerts.read
+    name: Read Alerts
+    description: View existing alerts
+  - code: alerts.write
+    name: Write Alerts
+    description: Create and resolve alerts
+
+# Events this plugin subscribes to (wildcards ok, bare * not allowed)
+event_subscriptions:
+  - device.status.*
+  - alert.created
+
+# REST API prefix for this plugin's endpoints
+api_prefix: /hello-world
+
+# Navigation item shown in the FreeSDN sidebar
+nav_items:
+  - path: /hello-world
+    label: Hello World
+    icon: Sparkles
+    order: 90
+
+# Plugin settings schema (shown in plugin config UI)
+settings_schema:
+  type: object
+  properties:
+    check_interval_minutes:
+      type: integer
+      default: 60
+      description: How often to scan for offline devices (minutes)
+    alert_severity:
+      type: string
+      enum: [info, warning, error, critical]
+      default: warning
+      description: Severity level for generated alerts
+
+# External PyPI dependencies (installed in isolated venv)
+python_dependencies: []
