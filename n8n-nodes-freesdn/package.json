@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-freesdn",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "n8n community nodes for FreeSDN network management platform",
   "keywords": [
     "n8n-community-node-package",

@@ -53,7 +53,10 @@ jobs:
       - name: Install the plugin SDK
         run: |
           python -m pip install --upgrade pip
-          pip install "git+https://github.com/freesdn/freesdn-sdk@main#subdirectory=sdk" pytest
+          # pytest-asyncio because the template's tests are async. Left out
+          # first time round: the venv it was verified in already had it
+          # from the SDK dev extras, so a contaminated environment hid it.
+          pip install "git+https://github.com/freesdn/freesdn-sdk@main#subdirectory=sdk" \n            pytest pytest-asyncio
           freesdn-sdk --help > /dev/null
 
       # Every plugin here must survive the same two commands the docs tell an
