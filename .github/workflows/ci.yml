@@ -56,7 +56,7 @@ jobs:
           # pytest-asyncio because the template's tests are async. Left out
           # first time round: the venv it was verified in already had it
           # from the SDK dev extras, so a contaminated environment hid it.
-          pip install "git+https://github.com/freesdn/freesdn-sdk@main#subdirectory=sdk" \n            pytest pytest-asyncio
+          pip install "git+https://github.com/freesdn/freesdn-sdk@main#subdirectory=sdk" pytest pytest-asyncio
           freesdn-sdk --help > /dev/null
 
       # Every plugin here must survive the same two commands the docs tell an
