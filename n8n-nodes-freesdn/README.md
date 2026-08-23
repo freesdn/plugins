@@ -24,7 +24,7 @@ n8n hop, not one blocking round-trip.
 | | Type | What it does |
 |---|---|---|
 | **FreeSDN** | Action | `Invoke` any Fabric operation, or `Emit` an event back into FreeSDN. Plus convenience resources (Device / Alert / VLAN / Site / Controller / WiFi / Automation / Backup). |
-| **FreeSDN Trigger** | Trigger | Registers a persistent FreeSDN webhook and starts your workflow when matching events fire (`device.*`, `alert.created`, `controller.disconnected`, …). Verifies the timestamp-bound HMAC signature on every delivery. |
+| **FreeSDN Trigger** | Trigger | Registers a persistent FreeSDN webhook and starts your workflow when matching events fire (`device.status.changed`, `alert.fired`, `controller.sync.failed`, …). Verifies the timestamp-bound HMAC signature on every delivery. |
 | **FreeSDN API** | Credential | `Server URL` + `API Key` (sent as `X-API-Key`), plus a required `Webhook Signing Secret` (the Trigger fails closed without it). |
 
 The **Invoke** operation's dropdown is populated **live** from `GET /fabric/catalog`, so the node
@@ -43,9 +43,26 @@ git clone https://github.com/freesdn/n8n-nodes-freesdn
 cd n8n-nodes-freesdn
 npm install
 npm run build        # tsc + copy icons → dist/
-# then point n8n at it, e.g.:
-#   N8N_CUSTOM_EXTENSIONS=/abs/path/to/n8n-nodes-freesdn
 ```
+
+Then point n8n at a directory **containing** the built package. n8n globs
+`**/*.node.js` beneath each path in `N8N_CUSTOM_EXTENSIONS`, so give it a parent
+directory holding only what you want loaded — aiming it at a development
+checkout makes it walk `node_modules/` as well:
+
+```bash
+mkdir -p /opt/n8n-custom
+ln -s "$PWD/dist" /opt/n8n-custom/freesdn
+N8N_CUSTOM_EXTENSIONS=/opt/n8n-custom n8n start
+```
+
+Or with Docker:
+
+```bash
+docker run -p 5678:5678   -e N8N_CUSTOM_EXTENSIONS=/custom   -v "$PWD/dist:/custom/freesdn:ro"   docker.n8n.io/n8nio/n8n:latest
+```
+
+The nodes register as **FreeSDN** and **FreeSDN Trigger** in the node panel.
 
 Requires n8n ≥ 1.0 (`n8nNodesApiVersion: 1`). Type-checked against `n8n-workflow@1.120`.
 

@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-freesdn",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "n8n community nodes for FreeSDN network management platform",
   "keywords": [
     "n8n-community-node-package",
@@ -12,8 +12,9 @@
   "license": "MIT",
   "homepage": "https://freesdn.org",
   "author": {
-    "name": "FreeSDN",
-    "email": "contact@freesdn.org"
+    "name": "PyPV - Python Platform Ventures",
+    "email": "contact@freesdn.org",
+    "url": "https://pypv.com"
   },
   "repository": {
     "type": "git",

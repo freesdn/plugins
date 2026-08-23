@@ -9,7 +9,7 @@ import type {
   INodeType,
   INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionTypes } from 'n8n-workflow';
+import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 import { apiRequest } from './GenericFunctions';
 
 interface FabricCatalogOp {
@@ -331,11 +331,32 @@ export class FreeSDN implements INodeType {
             const limit = this.getNodeParameter('returnAll', i) ? 1000 : (this.getNodeParameter('limit', i) as number);
             responseData = await apiRequest.call(this, 'GET', '/devices', {}, { limit });
           } else if (operation === 'getClients') {
+            // /devices/{id}/clients does not exist and never did; this returned
+            // 404 for every user who selected the operation. Clients are a
+            // network-module resource filtered by SITE, so resolve the device's
+            // site first and list against that.
             const id = this.getNodeParameter('id', i) as string;
-            responseData = await apiRequest.call(this, 'GET', `/devices/${id}/clients`);
+            const device = (await apiRequest.call(this, 'GET', `/devices/${id}`)) as IDataObject;
+            const siteId = device.site_id as string | undefined;
+            if (!siteId) {
+              throw new NodeOperationError(
+                this.getNode(),
+                `Device ${id} is not assigned to a site, so its clients cannot be listed.`,
+                { itemIndex: i },
+              );
+            }
+            responseData = await apiRequest.call(
+              this,
+              'GET',
+              '/network/clients',
+              {},
+              { site_id: siteId, limit: 200 },
+            );
           } else if (operation === 'getPorts') {
+            // Ports are served by the network module, not the core device
+            // router: /devices/{id}/ports 404s.
             const id = this.getNodeParameter('id', i) as string;
-            responseData = await apiRequest.call(this, 'GET', `/devices/${id}/ports`);
+            responseData = await apiRequest.call(this, 'GET', `/network/devices/${id}/ports`);
           } else if (operation === 'reboot') {
             const id = this.getNodeParameter('id', i) as string;
             const reason = this.getNodeParameter('reason', i) as string;
@@ -396,13 +417,14 @@ export class FreeSDN implements INodeType {
           }
         } else if (resource === 'automation') {
           if (operation === 'getAll') {
-            responseData = await apiRequest.call(this, 'GET', '/automation/rules');
+            // The router is mounted at /automation; /automation/rules 422s.
+            responseData = await apiRequest.call(this, 'GET', '/automation/');
           } else if (operation === 'enable') {
             const id = this.getNodeParameter('id', i) as string;
-            responseData = await apiRequest.call(this, 'POST', `/automation/rules/${id}/enable`);
+            responseData = await apiRequest.call(this, 'POST', `/automation/${id}/enable`);
           } else if (operation === 'disable') {
             const id = this.getNodeParameter('id', i) as string;
-            responseData = await apiRequest.call(this, 'POST', `/automation/rules/${id}/disable`);
+            responseData = await apiRequest.call(this, 'POST', `/automation/${id}/disable`);
           }
         } else if (resource === 'backup') {
           if (operation === 'getAll') {

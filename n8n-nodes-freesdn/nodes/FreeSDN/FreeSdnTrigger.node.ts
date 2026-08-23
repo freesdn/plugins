@@ -12,23 +12,58 @@ import type {
 import { NodeConnectionTypes } from 'n8n-workflow';
 import { apiRequest } from './GenericFunctions';
 
+// Every value here is a name FreeSDN ACTUALLY publishes.
+//
+// Ten of the sixteen options this list used to offer could never fire:
+// device.online, device.offline, alert.created, alert.escalated,
+// controller.connected, controller.disconnected, backup.complete,
+// backup.failed, discovery.complete and security.anomaly are not published
+// anywhere in the platform. Several were near-misses -- discovery.complete for
+// discovery.completed, alert.created for alert.fired -- which is the worst
+// kind, because the workflow saves, activates, shows no error and simply never
+// runs. Nothing on either side reports a subscription that cannot match.
+//
+// Check a name against a running instance before adding one. The backend test
+// tests/plugins/test_event_names_are_real.py resolves the full published set,
+// including names completed by an f-string at the call site.
 const EVENT_TYPE_OPTIONS = [
   { name: 'Any Device Event', value: 'device.*' },
-  { name: 'Device Online', value: 'device.online' },
-  { name: 'Device Offline', value: 'device.offline' },
   { name: 'Device Status Changed', value: 'device.status.changed' },
   { name: 'Device Discovered', value: 'device.discovered' },
+  { name: 'Device Adopted', value: 'device.adopted' },
+  { name: 'Device Updated', value: 'device.updated' },
+  { name: 'Device Action Completed', value: 'device.action_completed' },
+  { name: 'Device Action Failed', value: 'device.action_failed' },
   { name: 'Any Alert Event', value: 'alert.*' },
-  { name: 'Alert Created', value: 'alert.created' },
+  { name: 'Alert Fired', value: 'alert.fired' },
   { name: 'Alert Resolved', value: 'alert.resolved' },
-  { name: 'Alert Escalated', value: 'alert.escalated' },
   { name: 'Any Controller Event', value: 'controller.*' },
-  { name: 'Controller Connected', value: 'controller.connected' },
-  { name: 'Controller Disconnected', value: 'controller.disconnected' },
-  { name: 'Backup Completed', value: 'backup.complete' },
-  { name: 'Backup Failed', value: 'backup.failed' },
-  { name: 'Discovery Complete', value: 'discovery.complete' },
-  { name: 'Security Anomaly', value: 'security.anomaly' },
+  { name: 'Controller Sync Started', value: 'controller.sync.started' },
+  { name: 'Controller Sync Completed', value: 'controller.sync.completed' },
+  { name: 'Controller Sync Failed', value: 'controller.sync.failed' },
+  { name: 'Staged Change Applied', value: 'controller.change.applied' },
+  { name: 'Staged Change Failed', value: 'controller.change.failed' },
+  { name: 'Staged Change Awaiting Apply', value: 'controller.change.staged' },
+  { name: 'Any Discovery Event', value: 'discovery.*' },
+  { name: 'Discovery Completed', value: 'discovery.completed' },
+  { name: 'Discovery Failed', value: 'discovery.failed' },
+  { name: 'Camera Went Offline', value: 'camera.status.offline' },
+  { name: 'Camera Came Online', value: 'camera.status.online' },
+  { name: 'VLAN Created', value: 'network.vlan.created' },
+  { name: 'VLAN Updated', value: 'network.vlan.updated' },
+  { name: 'VLAN Deleted', value: 'network.vlan.deleted' },
+  { name: 'WiFi Network Created', value: 'network.wifi.created' },
+  { name: 'WiFi Network Updated', value: 'network.wifi.updated' },
+  { name: 'SLA Breach Opened', value: 'sla.breach.created' },
+  { name: 'SLA Breach Resolved', value: 'sla.breach.resolved' },
+  { name: 'VPN Connected', value: 'vpn.connected' },
+  { name: 'VPN Disconnected', value: 'vpn.disconnected' },
+  { name: 'VPN Health Degraded', value: 'vpn.health_degraded' },
+  { name: 'Backup Validation Failed', value: 'backup.validation.failed' },
+  { name: 'Gateway Distribution Completed', value: 'gateway.distribution.completed' },
+  { name: 'Gateway Distribution Failed', value: 'gateway.distribution.failed' },
+  { name: 'AI Budget Warning', value: 'ai.budget.warning' },
+  { name: 'Webhook Test', value: 'webhook.test' },
 ];
 
 /**
@@ -173,6 +208,30 @@ export class FreeSdnTrigger implements INodeType {
     },
   };
 
+  /**
+   * Reject a delivery, and actually SAY SO.
+   *
+   * `noWebhookResponse: true` means "I have already sent the response" -- it is
+   * not a rejection. Returning it without writing to the response object left
+   * the connection open with nothing on it, so FreeSDN's delivery worker waited
+   * out its full timeout and then recorded the delivery as a TIMEOUT and
+   * retried it under the retry policy. A spoofed or replayed POST was therefore
+   * retried repeatedly and the operator's failure reason said "timeout" rather
+   * than "signature rejected".
+   *
+   * The workflow still does not run either way; this only makes the refusal
+   * visible and immediate to the sender.
+   */
+  private static reject(
+    ctx: IWebhookFunctions,
+    status: number,
+    reason: string,
+  ): IWebhookResponseData {
+    const res = ctx.getResponseObject();
+    res.status(status).json({ error: reason });
+    return { noWebhookResponse: true };
+  }
+
   async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
     const credentials = await this.getCredentials('freeSDNApi');
     const secret = (credentials.webhookSecret as string) || '';
@@ -182,7 +241,7 @@ export class FreeSdnTrigger implements INodeType {
     // controlled event data straight into the workflow. Fail closed when unset
     // (the credential also marks webhookSecret required:true so it cannot be empty).
     if (!secret) {
-      return { noWebhookResponse: true };
+      return FreeSdnTrigger.reject(this, 500, 'No webhook signing secret is configured on this credential');
     }
 
     // Verify the timestamp-bound HMAC before trusting the delivery — rejects a
@@ -215,13 +274,13 @@ export class FreeSdnTrigger implements INodeType {
       // body, a signature, AND a timestamp. Missing any → reject (no unauthenticated
       // or unversioned POST is trusted).
       if (raw === undefined || !provided || !timestamp) {
-        return { noWebhookResponse: true };
+        return FreeSdnTrigger.reject(this, 401, 'Missing signature, timestamp or body');
       }
       // Replay window: reject deliveries whose timestamp is outside ±300s of now.
       const ts = Number(timestamp);
       const nowSec = Math.floor(Date.now() / 1000);
       if (!Number.isFinite(ts) || Math.abs(nowSec - ts) > 300) {
-        return { noWebhookResponse: true };
+        return FreeSdnTrigger.reject(this, 401, 'Timestamp outside the accepted replay window');
       }
       const { createHmac, timingSafeEqual } = await import('crypto');
       const bytes = typeof raw === 'string' ? Buffer.from(raw) : raw;
@@ -234,7 +293,7 @@ export class FreeSdnTrigger implements INodeType {
       const expBuf = Buffer.from(expected, 'utf8');
       const ok = provBuf.length === expBuf.length && timingSafeEqual(provBuf, expBuf);
       if (!ok) {
-        return { noWebhookResponse: true };
+        return FreeSdnTrigger.reject(this, 401, 'Signature verification failed');
       }
     }
 

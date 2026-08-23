@@ -19,11 +19,17 @@ Docs: https://docs.freesdn.org/plugins/getting-started
 
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter
 
 from freesdn_sdk import FreeSDNPlugin
+
+# install and uninstall run ONCE for the whole appliance, before and after any
+# per-organisation runtime exists, so ``self.ctx`` is None in both. Use a plain
+# module logger there; ``self.ctx.logger`` is for on_start and everything after.
+logger = logging.getLogger(__name__)
 
 
 class HelloWorldPlugin(FreeSDNPlugin):
@@ -32,17 +38,25 @@ class HelloWorldPlugin(FreeSDNPlugin):
     on the ``class_name`` field in plugin.yaml.
 
     Lifecycle:
-      on_install()  → called once at first install
-      on_start()    → called every time FreeSDN starts (per org)
-      on_upgrade()  → called when the plugin version changes
-      on_uninstall() → called just before removal
+      on_install()  → called once at first install      (no self.ctx)
+      on_start()    → called every time FreeSDN starts (per org, sets self.ctx)
+      on_upgrade()  → called when the plugin version changes  (no self.ctx)
+      on_uninstall() → called just before removal            (no self.ctx)
+
+    The appliance-wide hooks run outside any organisation, so self.ctx is None
+    in all three. Only on_start and what it calls have a context.
     """
 
     # ── Lifecycle Hooks ─────────────────────────────────────────────
 
     async def on_install(self, db) -> None:
-        """First-time setup.  Seed default settings."""
-        self.ctx.logger.info("Hello World plugin installed!")
+        """First-time setup.  Seed default settings.
+
+        NOTE: ``self.ctx`` is NOT available here. This hook runs once for the
+        appliance, before any per-organisation runtime exists, so there is no
+        context to give it. Use ``db`` and a module logger.
+        """
+        logger.info("Hello World plugin installed!")
 
     async def on_start(self, organization_id: UUID, db=None) -> None:
         """
@@ -85,8 +99,8 @@ class HelloWorldPlugin(FreeSDNPlugin):
         })
 
     async def on_uninstall(self, db) -> None:
-        """Cleanup before removal."""
-        self.ctx.logger.info("Hello World plugin uninstalled.  Goodbye!")
+        """Cleanup before removal.  ``self.ctx`` is not available here either."""
+        logger.info("Hello World plugin uninstalled.  Goodbye!")
 
     # ── REST API ────────────────────────────────────────────────────
 
@@ -120,6 +134,23 @@ class HelloWorldPlugin(FreeSDNPlugin):
                 "count": len(devices),
                 "devices": devices,
             }
+
+        @router.get("/sites")
+        async def sites():
+            """GET /api/v1/hello-world/sites — sites this caller may see.
+
+            Every device carries a site_id and nothing else about the site, so
+            without this a plugin can only show an operator a raw UUID. The
+            listing is scoped twice: to the plugin's organization, and then to
+            the calling user's own per-site grants. A site-limited user sees
+            their sites and no others, through the plugin exactly as they would
+            through the product.
+            """
+            if not self.ctx:
+                return {"sites": [], "error": "Plugin not started"}
+
+            found = await self.ctx.sites.list(limit=50)
+            return {"count": len(found), "sites": found}
 
         @router.post("/check")
         async def run_check():

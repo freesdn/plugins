@@ -10,7 +10,7 @@
 
 id: hello-world
 name: Hello World
-version: 1.0.0
+version: 1.2.0
 description: >
   A minimal example plugin that demonstrates the FreeSDN Plugin SDK.
   Lists offline devices, creates alerts, emits events, stores settings,
@@ -18,7 +18,12 @@ description: >
 author: FreeSDN Team
 license: MIT
 homepage: https://github.com/freesdn/freesdn
-min_core_version: 1.0.0
+# The oldest core this plugin is actually known to run on. It said 1.0.0, which
+# claims compatibility with every FreeSDN ever released, including versions
+# predating the plugin SDK it imports. The loader trusts this value, so an
+# over-broad floor turns a clean "needs a newer FreeSDN" refusal into an import
+# error at enable time.
+min_core_version: 26.06.1
 
 # Python entry point - file and class that FreeSDN will load
 entry_point: plugin.py
@@ -35,11 +40,25 @@ permissions:
   - code: alerts.write
     name: Write Alerts
     description: Create and resolve alerts
+  - code: sites.read
+    name: Read Sites
+    description: Resolve a device's site_id to a site name for alert text
+
+# Note on `name` and `description`: they are yours to write, and the install
+# consent dialog deliberately does NOT show them. It renders FreeSDN's own
+# summary for each `code` instead, because an author-supplied label on a
+# capability is not something an operator can safely base a trust decision on.
+# The `code` is the only part that grants anything.
 
 # Events this plugin subscribes to (wildcards ok, bare * not allowed)
+#
+# These must be names the platform actually publishes. `alert.created` sat here
+# and never fired once: the alert lifecycle publishes `alert.fired`. Nothing
+# reports a subscription that can never match, so the plugin installs, enables,
+# and stays quiet. Check a name against a running instance before adding it.
 event_subscriptions:
   - device.status.*
-  - alert.created
+  - alert.fired
 
 # REST API prefix for this plugin's endpoints
 api_prefix: /hello-world
@@ -67,3 +86,11 @@ settings_schema:
 
 # External PyPI dependencies (installed in isolated venv)
 python_dependencies: []
+
+# Registry metadata. Ignored by the plugin loader (PluginManifest drops
+# unknown keys); read by the registry build to fill the catalogue entry.
+category: utility
+tags:
+  - example
+  - sdk
+  - starter

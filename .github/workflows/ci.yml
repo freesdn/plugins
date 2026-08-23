@@ -1,0 +1,109 @@
+name: CI
+
+# Public CI for github.com/freesdn/plugins.
+#
+# This repo had no .github directory. It holds the two things a plugin author
+# starts from -- plugin-template/ and examples/plugins/ -- plus the n8n node,
+# and a mistake in any of them is copied into whatever they write next. That
+# makes it more consequential than a repo of finished code, and it was the last
+# of the five with nothing checking it.
+#
+# The example shipped here called self.ctx.logger inside on_install for two
+# releases. self.ctx is only assigned in on_start, so it is None there; the
+# loader wraps the hook in a try/except, so nothing broke and the log line
+# simply never appeared. Nobody copying it would have known why.
+#
+# Deeper checks -- manifests against the real PluginManifest, subscriptions
+# against the events FreeSDN actually publishes -- need the backend and live in
+# the monorepo. This workflow is what this repo can prove on its own.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plugins:
+    name: Template and examples
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.11'
+
+      # Installed from the SDK repo, not PyPI. The `freesdn-sdk` name on PyPI is
+      # still the 0.0.1 placeholder that reserves it -- it has no CLI, so
+      # `pip install freesdn-sdk` here would give a green install and then fail
+      # on `freesdn-sdk: command not found`. Switch this to the PyPI package
+      # once the real one is published.
+      - name: Install the plugin SDK
+        run: |
+          python -m pip install --upgrade pip
+          pip install "git+https://github.com/freesdn/freesdn-sdk@main#subdirectory=sdk" pytest
+          freesdn-sdk --help > /dev/null
+
+      # Every plugin here must survive the same two commands the docs tell an
+      # author to run before publishing. `check` in particular had been wrong
+      # in both directions -- it missed seven import-machinery modules the
+      # sandbox blocks, and refused `import asyncio`, which it does not.
+      - name: Every plugin validates and passes the security check
+        run: |
+          set -e
+          shopt -s nullglob
+          found=0
+          for dir in plugin-template examples/plugins/*/; do
+            [ -f "$dir/plugin.yaml" ] || continue
+            found=$((found + 1))
+            echo "── $dir"
+            freesdn-sdk validate "$dir"
+            freesdn-sdk check "$dir"
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "No plugins found -- this job would pass by checking nothing."
+            exit 1
+          fi
+          echo "Checked $found plugin(s)."
+
+      # The template ships with tests. If they do not run, an author copying it
+      # inherits a test file that has never been executed.
+      - name: The template's own tests pass
+        working-directory: plugin-template
+        run: PYTHONPATH=. python -m pytest tests -q
+
+  n8n-node:
+    name: n8n node
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
+        with:
+          node-version: '22'
+
+      - name: Install
+        working-directory: n8n-nodes-freesdn
+        run: npm ci || npm install
+
+      - name: Lint
+        working-directory: n8n-nodes-freesdn
+        run: npm run lint --if-present
+
+      - name: Build
+        working-directory: n8n-nodes-freesdn
+        run: npm run build --if-present
