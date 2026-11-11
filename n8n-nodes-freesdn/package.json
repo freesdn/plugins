@@ -44,7 +44,7 @@
   "devDependencies": {
     "@types/node": "^24.19.2",
     "gulp": "^5.0.1",
-    "n8n-workflow": "2.46.5",
+    "n8n-workflow": "3.1.0",
     "prettier": "^3.9.10",
     "typescript": "^7.0.2"
   },
