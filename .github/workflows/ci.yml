@@ -19,7 +19,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # qualification/** carries a release candidate before main moves.
+    branches: [main, 'qualification/**']
   pull_request:
     branches: [main]
   schedule:
@@ -41,7 +42,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: '3.11'
 
@@ -85,7 +86,14 @@ jobs:
       # inherits a test file that has never been executed.
       - name: The template's own tests pass
         working-directory: plugin-template
-        run: PYTHONPATH=. python -m pytest tests -q
+        # Plain `pytest`, deliberately: this is the command the scaffold
+        # prints and an author actually types. It used to be
+        # `PYTHONPATH=. python -m pytest`, which put the plugin root on sys.path
+        # and so passed even though the scaffold itself was broken -- the
+        # generated tests could not import the generated plugin. `init` now
+        # emits a tests/conftest.py that does it properly, and running the real
+        # command here is what keeps that true.
+        run: pytest tests -q
 
   n8n-node:
     name: n8n node
@@ -95,13 +103,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Set up Node
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
-          node-version: '22'
+          node-version: '24.22.2'
 
       - name: Install
         working-directory: n8n-nodes-freesdn
-        run: npm ci || npm install
+        run: |
+          npm install --global npm@12.2.2
+          npm ci
 
       - name: Lint
         working-directory: n8n-nodes-freesdn
@@ -109,4 +119,4 @@ jobs:
 
       - name: Build
         working-directory: n8n-nodes-freesdn
-        run: npm run build --if-present
+        run: npm test

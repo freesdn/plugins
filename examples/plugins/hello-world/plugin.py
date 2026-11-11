@@ -23,7 +23,6 @@ import logging
 from uuid import UUID
 
 from fastapi import APIRouter
-
 from freesdn_sdk import FreeSDNPlugin
 
 # install and uninstall run ONCE for the whole appliance, before and after any
@@ -165,7 +164,7 @@ class HelloWorldPlugin(FreeSDNPlugin):
             for device in offline:
                 await self.ctx.alerts.create(
                     title=f"Device offline: {device['name']}",
-                    message=f"Detected by Hello World plugin manual check.",
+                    message="Detected by Hello World plugin manual check.",
                     severity=severity,
                     device_id=UUID(device["id"]) if device.get("id") else None,
                 )

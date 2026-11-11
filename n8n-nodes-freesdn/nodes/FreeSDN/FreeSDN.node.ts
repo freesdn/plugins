@@ -10,7 +10,22 @@ import type {
   INodeTypeDescription,
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
-import { apiRequest } from './GenericFunctions';
+import { apiRequest, apiRequestAllItems } from './GenericFunctions';
+
+const listResources: Record<string, {
+  path: string;
+  pagination: 'page' | 'skip' | 'offset';
+  itemKey: string;
+}> = {
+  device: { path: '/devices/', pagination: 'page', itemKey: 'items' },
+  site: { path: '/sites/', pagination: 'page', itemKey: 'items' },
+  controller: { path: '/controllers/', pagination: 'page', itemKey: 'items' },
+  automation: { path: '/automation/', pagination: 'page', itemKey: 'items' },
+  backup: { path: '/backups/', pagination: 'page', itemKey: 'items' },
+  vlan: { path: '/network/vlans', pagination: 'skip', itemKey: 'items' },
+  wifi: { path: '/network/wifi', pagination: 'skip', itemKey: 'items' },
+  alert: { path: '/alert-rules/alerts', pagination: 'offset', itemKey: 'alerts' },
+};
 
 interface FabricCatalogOp {
   id: string;
@@ -265,6 +280,16 @@ export class FreeSDN implements INodeType {
         displayOptions: { show: { resource: ['vlan'], operation: ['create', 'update'] } },
       },
 
+      {
+        displayName: 'Backup Name',
+        name: 'backupName',
+        type: 'string',
+        required: true,
+        default: 'n8n configuration snapshot',
+        description: 'Name of the encrypted configuration snapshot (excludes secrets)',
+        displayOptions: { show: { resource: ['backup'], operation: ['create'] } },
+      },
+
       // ── Reboot reason ─────────────────────────────────────────────────
       {
         displayName: 'Reason',
@@ -306,7 +331,17 @@ export class FreeSDN implements INodeType {
       let responseData: unknown;
 
       try {
-        if (resource === 'fabric') {
+        if (operation === 'getAll' && listResources[resource]) {
+          const { path, pagination, itemKey } = listResources[resource];
+          const maximum = this.getNodeParameter('returnAll', i)
+            ? Infinity : this.getNodeParameter('limit', i) as number;
+          if (maximum !== Infinity && (!Number.isInteger(maximum) || maximum < 1)) {
+            throw new NodeOperationError(this.getNode(), 'Limit must be a positive integer', { itemIndex: i });
+          }
+          responseData = await apiRequestAllItems.call(
+            this, 'GET', path, {}, {}, pagination, itemKey, maximum,
+          );
+        } else if (resource === 'fabric') {
           if (operation === 'invoke') {
             const opId = this.getNodeParameter('fabricOperationId', i) as string;
             const raw = this.getNodeParameter('fabricParams', i, {}) as unknown;
@@ -327,9 +362,7 @@ export class FreeSDN implements INodeType {
           if (operation === 'get') {
             const id = this.getNodeParameter('id', i) as string;
             responseData = await apiRequest.call(this, 'GET', `/devices/${id}`);
-          } else if (operation === 'getAll') {
-            const limit = this.getNodeParameter('returnAll', i) ? 1000 : (this.getNodeParameter('limit', i) as number);
-            responseData = await apiRequest.call(this, 'GET', '/devices', {}, { limit });
+
           } else if (operation === 'getClients') {
             // /devices/{id}/clients does not exist and never did; this returned
             // 404 for every user who selected the operation. Clients are a
@@ -363,10 +396,7 @@ export class FreeSDN implements INodeType {
             responseData = await apiRequest.call(this, 'POST', `/devices/${id}/reboot`, { reason });
           }
         } else if (resource === 'alert') {
-          if (operation === 'getAll') {
-            const limit = this.getNodeParameter('returnAll', i) ? 1000 : (this.getNodeParameter('limit', i) as number);
-            responseData = await apiRequest.call(this, 'GET', '/alert-rules/alerts', {}, { limit });
-          } else if (operation === 'get') {
+          if (operation === 'get') {
             const id = this.getNodeParameter('id', i) as string;
             responseData = await apiRequest.call(this, 'GET', `/alert-rules/alerts/${id}`);
           } else if (operation === 'acknowledge') {
@@ -377,9 +407,7 @@ export class FreeSDN implements INodeType {
             responseData = await apiRequest.call(this, 'POST', `/alert-rules/alerts/${id}/resolve`);
           }
         } else if (resource === 'vlan') {
-          if (operation === 'getAll') {
-            responseData = await apiRequest.call(this, 'GET', '/network/vlans');
-          } else if (operation === 'get') {
+          if (operation === 'get') {
             const id = this.getNodeParameter('id', i) as string;
             responseData = await apiRequest.call(this, 'GET', `/network/vlans/${id}`);
           } else if (operation === 'create') {
@@ -395,31 +423,22 @@ export class FreeSDN implements INodeType {
             responseData = await apiRequest.call(this, 'DELETE', `/network/vlans/${id}`);
           }
         } else if (resource === 'site') {
-          if (operation === 'getAll') {
-            responseData = await apiRequest.call(this, 'GET', '/sites');
-          } else if (operation === 'get') {
+          if (operation === 'get') {
             const id = this.getNodeParameter('id', i) as string;
             responseData = await apiRequest.call(this, 'GET', `/sites/${id}`);
           }
         } else if (resource === 'controller') {
-          if (operation === 'getAll') {
-            responseData = await apiRequest.call(this, 'GET', '/controllers');
-          } else if (operation === 'get') {
+          if (operation === 'get') {
             const id = this.getNodeParameter('id', i) as string;
             responseData = await apiRequest.call(this, 'GET', `/controllers/${id}`);
           }
         } else if (resource === 'wifi') {
-          if (operation === 'getAll') {
-            responseData = await apiRequest.call(this, 'GET', '/network/wifi');
-          } else if (operation === 'get') {
+          if (operation === 'get') {
             const id = this.getNodeParameter('id', i) as string;
             responseData = await apiRequest.call(this, 'GET', `/network/wifi/${id}`);
           }
         } else if (resource === 'automation') {
-          if (operation === 'getAll') {
-            // The router is mounted at /automation; /automation/rules 422s.
-            responseData = await apiRequest.call(this, 'GET', '/automation/');
-          } else if (operation === 'enable') {
+          if (operation === 'enable') {
             const id = this.getNodeParameter('id', i) as string;
             responseData = await apiRequest.call(this, 'POST', `/automation/${id}/enable`);
           } else if (operation === 'disable') {
@@ -427,13 +446,12 @@ export class FreeSDN implements INodeType {
             responseData = await apiRequest.call(this, 'POST', `/automation/${id}/disable`);
           }
         } else if (resource === 'backup') {
-          if (operation === 'getAll') {
-            responseData = await apiRequest.call(this, 'GET', '/backups');
-          } else if (operation === 'get') {
+          if (operation === 'get') {
             const id = this.getNodeParameter('id', i) as string;
             responseData = await apiRequest.call(this, 'GET', `/backups/${id}`);
           } else if (operation === 'create') {
-            responseData = await apiRequest.call(this, 'POST', '/backups');
+            const name = this.getNodeParameter('backupName', i) as string;
+            responseData = await apiRequest.call(this, 'POST', '/backups/', { name });
           }
         }
 

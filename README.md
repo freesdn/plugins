@@ -31,7 +31,9 @@ alongside the core.
 n8n community nodes that wire FreeSDN's Fabric (its universal
 app-interconnect) into n8n workflows.
 
-**Install in n8n:** Settings - Community Nodes - Install - `n8n-nodes-freesdn`
+**Install in n8n:** `n8n-nodes-freesdn` is not on npm yet: the name there is a placeholder
+(0.0.1), so n8n's Community Nodes installer would install that. Build the
+node from this repository and load it as a custom node, as below.
 
 What you get:
 
@@ -59,8 +61,8 @@ FreeSDN (event out)
 ```
 
 The two FreeSDN connections are decoupled - the n8n hop is fully
-asynchronous. See [docs/FABRIC-N8N.md](https://github.com/freesdn/freesdn/blob/main/docs/FABRIC-N8N.md)
-in the core repo for the full recipe with copy-pasteable config.
+asynchronous. See [FreeSDN and n8n](https://docs.freesdn.org/automation/n8n)
+in the documentation for the full recipe with copy-pasteable config.
 
 ### Security notes
 
@@ -80,11 +82,12 @@ in the core repo for the full recipe with copy-pasteable config.
 ```bash
 git clone https://github.com/freesdn/plugins
 cd plugins/n8n-nodes-freesdn
-npm install
+npm ci
 npm run build          # tsc + copy icons -> dist/
 ```
 
-Requires n8n >= 1.0.
+Built against the n8n 2.x node types (`n8n-workflow` 2.46.5). It has not been
+tested in an n8n 1.x host.
 
 ---
 
@@ -112,7 +115,7 @@ FreeSDN. Build your plugin in its own repo using the
 [FreeSDN SDK](https://github.com/freesdn/freesdn-sdk):
 
 ```bash
-pip install "freesdn-sdk[dev]"
+pip install "freesdn-sdk[dev] @ git+https://github.com/freesdn/freesdn-sdk@v0.3.0#subdirectory=sdk"
 freesdn-sdk init my-plugin
 cd my-plugin
 # implement, test, package

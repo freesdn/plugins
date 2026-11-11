@@ -10,7 +10,7 @@
 
 id: hello-world
 name: Hello World
-version: 1.2.0
+version: 1.2.1
 description: >
   A minimal example plugin that demonstrates the FreeSDN Plugin SDK.
   Lists offline devices, creates alerts, emits events, stores settings,

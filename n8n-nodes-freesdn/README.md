@@ -34,14 +34,16 @@ pipeline for per-action operator sign-off.
 
 ## Install
 
-**In n8n (recommended):** Settings → Community Nodes → Install → `n8n-nodes-freesdn`.
+`n8n-nodes-freesdn` is not on npm yet: the name there is a placeholder
+(0.0.1), so n8n's Community Nodes installer would install that. Build the
+node from this repository and load it as a custom node, as below.
 
-**Manually / for development:**
+**Build and load it:**
 
 ```bash
-git clone https://github.com/freesdn/n8n-nodes-freesdn
-cd n8n-nodes-freesdn
-npm install
+git clone https://github.com/freesdn/plugins
+cd plugins/n8n-nodes-freesdn
+npm ci
 npm run build        # tsc + copy icons → dist/
 ```
 
@@ -103,7 +105,7 @@ n8n sits **between** two FreeSDN Connections:
 
 - **Leg out** - Connection A's target is the built-in `fabric.webhook` op, which POSTs to your n8n
   webhook URL. It is SSRF-guarded; to reach a self-hosted n8n on your LAN/tailnet, allowlist its
-  host via `FABRIC_WEBHOOK_ALLOWED_HOSTS` on the FreeSDN side (see `docs/FABRIC-N8N.md`).
+  host via `FABRIC_WEBHOOK_ALLOWED_HOSTS` on the FreeSDN side (see [FreeSDN and n8n](https://docs.freesdn.org/automation/n8n)).
 - **Leg back** - the **FreeSDN: Emit** action posts to `POST /fabric/ingest`, which publishes a
   canonical `ingest.external` event. Connection B matches it (filter on `payload.name`) and runs the
   real action - riding staging + sign-off for any device write.
@@ -122,7 +124,7 @@ You can also skip the round-trip and call FreeSDN directly with **FreeSDN: Invok
   as the event type - anti-spoof).
 - The Trigger's HMAC (required signing secret) authenticates every delivery to your n8n URL and fails closed without it.
 
-See **`docs/FABRIC-N8N.md`** in the FreeSDN repo for the full, copy-pasteable recipe.
+See [FreeSDN and n8n](https://docs.freesdn.org/automation/n8n) in the documentation for the full, copy-pasteable recipe.
 
 ## License
 

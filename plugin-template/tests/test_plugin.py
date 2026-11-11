@@ -11,9 +11,7 @@ without the FreeSDN runtime. Run them with:
 from __future__ import annotations
 
 import pytest
-
 from freesdn_sdk.testing import create_test_context
-
 from plugin import MyPlugin
 
 

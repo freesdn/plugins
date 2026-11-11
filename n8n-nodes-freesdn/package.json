@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-freesdn",
-  "version": "1.0.3",
+  "version": "2.0.0",
   "description": "n8n community nodes for FreeSDN network management platform",
   "keywords": [
     "n8n-community-node-package",
@@ -25,7 +25,8 @@
     "build": "tsc && gulp build:icons",
     "dev": "tsc --watch",
     "format": "prettier nodes credentials --write",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "npm run build && node --test test/*.test.cjs"
   },
   "files": [
     "dist"
@@ -41,16 +42,23 @@
     ]
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "gulp": "^5.0.0",
-    "n8n-workflow": "^1.0.0",
-    "prettier": "^3.9.0",
-    "typescript": "^6.0.0"
+    "@types/node": "^24.19.2",
+    "gulp": "^5.0.1",
+    "n8n-workflow": "2.46.5",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2"
   },
   "peerDependencies": {
     "n8n-workflow": "*"
   },
   "overrides": {
-    "form-data": "^4.0.6"
+    "form-data": "^4.0.6",
+    "axios": "^1.20.0",
+    "follow-redirects": ">=1.16.2"
+  },
+  "packageManager": "npm@12.2.2",
+  "dependencyHolds": {
+    "n8n-workflow": "Use the upstream stable channel (2.46.5 on 2026-11-11). The latest dist-tag points to the older 2.16.0 release, while beta is 2.48.0. Do not downgrade or adopt beta based only on the latest tag. Keep this exact pin: a caret also admits the beta-tagged 2.48.0 because upstream does not use a semver prerelease suffix.",
+    "@types/node": "Track Node 24 LTS APIs to match the public-release Docker builder and CI. Adopt a newer major only after it enters LTS and FreeSDN qualifies that migration."
   }
 }

@@ -9,7 +9,7 @@ import type {
   IWebhookFunctions,
   IWebhookResponseData,
 } from 'n8n-workflow';
-import { NodeConnectionTypes } from 'n8n-workflow';
+import { NodeApiError, NodeConnectionTypes } from 'n8n-workflow';
 import { apiRequest } from './GenericFunctions';
 
 // Every value here is a name FreeSDN ACTUALLY publishes.
@@ -181,7 +181,10 @@ export class FreeSdnTrigger implements INodeType {
             await apiRequest.call(this, 'PATCH', `/webhooks/${webhookData.webhookId}`, body);
             webhookData.fingerprint = await registrationFingerprint.call(this);
             return true;
-          } catch {
+          } catch (error) {
+            // A refusal or uncertain server failure does not prove the existing
+            // registration is gone. Keep its ID so a retry cannot duplicate it.
+            if (!(error instanceof NodeApiError) || error.httpCode !== '404') throw error;
             delete webhookData.webhookId;
           }
         }

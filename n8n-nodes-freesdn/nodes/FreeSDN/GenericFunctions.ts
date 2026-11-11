@@ -9,7 +9,7 @@ import type {
   IRequestOptions,
   JsonObject,
 } from 'n8n-workflow';
-import { NodeApiError } from 'n8n-workflow';
+import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
 /**
  * Make an authenticated request to the FreeSDN API.
@@ -46,38 +46,41 @@ export async function apiRequest(
   }
 }
 
-/**
- * Make paginated GET request, returns all items.
- */
+/** Fetch resource rows using the pagination contract of its backend router. */
 export async function apiRequestAllItems(
   this: IExecuteFunctions | ILoadOptionsFunctions,
   method: IHttpRequestMethods,
   resource: string,
   body: IDataObject = {},
   query: IDataObject = {},
+  pagination: 'page' | 'skip' | 'offset' = 'page',
+  itemKey = 'items',
+  maximum = Infinity,
 ): Promise<unknown[]> {
   const returnData: unknown[] = [];
   let page = 1;
-  const limit = 100;
+  // All supported routers accept 100. Keep it fixed between numbered pages;
+  // reducing the final page size would change the server's computed offset.
+  const pageSize = Math.min(100, maximum);
 
-  while (true) {
+  while (returnData.length < maximum) {
+    const cursor = pagination === 'page'
+      ? { page, per_page: pageSize }
+      : { [pagination]: returnData.length, limit: pageSize };
     const responseData = await apiRequest.call(this, method, resource, body, {
       ...query,
-      page,
-      limit,
-    });
-
-    const items = Array.isArray(responseData)
-      ? responseData
-      : (responseData as IDataObject).items ?? [];
-
-    returnData.push(...(items as unknown[]));
-
-    if ((items as unknown[]).length < limit) {
+      ...cursor,
+    }) as IDataObject;
+    const items = responseData?.[itemKey];
+    if (!Array.isArray(items)) {
+      throw new NodeOperationError(this.getNode(), 'Invalid paginated response from FreeSDN');
+    }
+    returnData.push(...items.slice(0, maximum - returnData.length));
+    if (items.length < pageSize ||
+        (typeof responseData.total === 'number' && returnData.length >= responseData.total)) {
       break;
     }
     page++;
   }
-
   return returnData;
 }
