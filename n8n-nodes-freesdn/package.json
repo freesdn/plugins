@@ -45,7 +45,7 @@
     "@types/node": "^24.19.2",
     "gulp": "^5.0.1",
     "n8n-workflow": "2.46.5",
-    "prettier": "^3.9.10",
+    "prettier": "^3.10.1",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
